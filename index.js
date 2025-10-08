@@ -1,4 +1,3 @@
-// index.js
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -13,7 +12,6 @@ const upload = multer({ dest: 'uploads/' });
 app.use(cors());
 app.use(express.json());
 
-// Map AI scores to your parameter keys
 const PARAMS_KEYS = [
   'greeting',
   'collectionUrgency',
@@ -34,7 +32,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const audioPath = req.file.path;
 
-    // ---------- Step 1: Upload audio to AssemblyAI ----------
+    // Upload audio to AssemblyAI
     const uploadResp = await axios({
       method: 'post',
       url: 'https://api.assemblyai.com/v2/upload',
@@ -49,7 +47,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const upload_url = uploadResp.data.upload_url;
 
-    // ---------- Step 2: Create transcript ----------
+    // Create transcript
     const createResp = await axios.post(
       'https://api.assemblyai.com/v2/transcript',
       {
@@ -60,7 +58,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const transcriptId = createResp.data.id;
 
-    // ---------- Step 3: Poll until transcript is ready ----------
+    // Poll until transcript is ready
     let transcript;
     while (true) {
       const pollResp = await axios.get(
@@ -79,7 +77,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     console.log('🎧 Transcript:', transcript);
 
-    // ---------- Step 4: Send transcript to Perplexity ----------
+    // Send transcript to Perplexity
     const prompt = `
       You are an evaluator analyzing a customer call transcript.
       Evaluate the transcript on these parameters:
@@ -133,7 +131,6 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
       parsedOutput = { scores: {}, overallFeedback: aiText, observation: '' };
     }
 
-    // Ensure all keys exist
     PARAMS_KEYS.forEach((k) => {
       if (!(k in parsedOutput.scores)) parsedOutput.scores[k] = 0;
     });
