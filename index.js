@@ -52,7 +52,9 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
     // ---------- Step 2: Create transcript ----------
     const createResp = await axios.post(
       'https://api.assemblyai.com/v2/transcript',
-      { audio_url: upload_url },
+      {
+        audio_url: upload_url,
+      },
       { headers: { Authorization: process.env.ASSEMBLYAI_API_KEY } }
     );
 
@@ -140,12 +142,10 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
     fs.unlinkSync(audioPath);
   } catch (err) {
     console.error(err.response?.data || err.message);
-    res
-      .status(500)
-      .json({
-        error: 'Processing failed',
-        details: err.response?.data || err.message,
-      });
+    res.status(500).json({
+      error: 'Processing failed',
+      details: err.response?.data || err.message,
+    });
   }
 });
 
