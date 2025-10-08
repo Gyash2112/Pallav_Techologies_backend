@@ -13,6 +13,7 @@ const upload = multer({ dest: 'uploads/' });
 app.use(cors());
 app.use(express.json());
 
+// Map AI scores to your parameter keys
 const PARAMS_KEYS = [
   'greeting',
   'collectionUrgency',
@@ -33,9 +34,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const audioPath = req.file.path;
 
-    console.log('audioPath', audioPath);
-
-    // ---------- Step 1: Added Assembly AI feature for uploading audio ----------
+    // ---------- Step 1: Upload audio to AssemblyAI ----------
     const uploadResp = await axios({
       method: 'post',
       url: 'https://api.assemblyai.com/v2/upload',
@@ -50,19 +49,16 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const upload_url = uploadResp.data.upload_url;
 
-    console.log('upload_url', upload_url);
-
-    // ---------- Step 2: Create transcript for uploaded audio----------
+    // ---------- Step 2: Create transcript ----------
     const createResp = await axios.post(
       'https://api.assemblyai.com/v2/transcript',
-      { audio_url: upload_url, punctuate: true, trim_silence: false },
+      { audio_url: upload_url },
       { headers: { Authorization: process.env.ASSEMBLYAI_API_KEY } }
     );
 
     const transcriptId = createResp.data.id;
-    console.log('transcriptId', transcriptId);
 
-    // ---------- Step 3: wait until transcript is ready ----------
+    // ---------- Step 3: Poll until transcript is ready ----------
     let transcript;
     while (true) {
       const pollResp = await axios.get(
@@ -79,7 +75,9 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
       await new Promise((r) => setTimeout(r, 1000));
     }
 
-    // ---------- Step 4: Send transcript to Perplexity API ----------
+    console.log('🎧 Transcript:', transcript);
+
+    // ---------- Step 4: Send transcript to Perplexity ----------
     const prompt = `
       You are an evaluator analyzing a customer call transcript.
       Evaluate the transcript on these parameters:
@@ -125,8 +123,6 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
       }
     );
 
-    console.log('perplexityResp', perplexityResp);
-
     const aiText = perplexityResp.data.choices[0].message.content;
     let parsedOutput;
     try {
@@ -135,6 +131,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
       parsedOutput = { scores: {}, overallFeedback: aiText, observation: '' };
     }
 
+    // Ensure all keys exist
     PARAMS_KEYS.forEach((k) => {
       if (!(k in parsedOutput.scores)) parsedOutput.scores[k] = 0;
     });
@@ -143,10 +140,12 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
     fs.unlinkSync(audioPath);
   } catch (err) {
     console.error(err.response?.data || err.message);
-    res.status(500).json({
-      error: 'Processing failed',
-      details: err.response?.data || err.message,
-    });
+    res
+      .status(500)
+      .json({
+        error: 'Processing failed',
+        details: err.response?.data || err.message,
+      });
   }
 });
 
