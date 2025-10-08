@@ -33,6 +33,8 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const audioPath = req.file.path;
 
+    console.log('audioPath', audioPath);
+
     // ---------- Step 1: Added Assembly AI feature for uploading audio ----------
     const uploadResp = await axios({
       method: 'post',
@@ -48,6 +50,8 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
 
     const upload_url = uploadResp.data.upload_url;
 
+    console.log('upload_url', upload_url);
+
     // ---------- Step 2: Create transcript for uploaded audio----------
     const createResp = await axios.post(
       'https://api.assemblyai.com/v2/transcript',
@@ -56,6 +60,7 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
     );
 
     const transcriptId = createResp.data.id;
+    console.log('transcriptId', transcriptId);
 
     // ---------- Step 3: wait until transcript is ready ----------
     let transcript;
@@ -119,6 +124,8 @@ app.post('/api/analyze-call', upload.single('audio'), async (req, res) => {
         },
       }
     );
+
+    console.log('perplexityResp', perplexityResp);
 
     const aiText = perplexityResp.data.choices[0].message.content;
     let parsedOutput;
